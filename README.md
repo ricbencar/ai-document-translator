@@ -38,8 +38,6 @@ Standard translators (Google/DeepL) often strip formatting to process raw text, 
 4. **ENTITY DECODING:** Converts HTML entities (&nbsp;, <) back to Word-compatible unicode.
 5. **INVISIBLE CLEANUP:** Purges Unicode Category 'C' (Control characters) and JSON artifacts (leftover braces or "1.1.1" key prefixes) that corrupt .docx XML.
 
-
-
 ### [C] REFLEXION & SELF-CORRECTION (ACTOR-CRITIC LOOP)
 
 * **STABILITY ENGINE:** The system implements an "Actor-Critic" architecture.
@@ -59,7 +57,6 @@ Standard translators (Google/DeepL) often strip formatting to process raw text, 
 1. The Primary Model (e.g., Gemma 2) drafts the translation.
 2. The Consultant Model reviews the draft specifically for "Technical Accuracy" (Units, Material Names, ISO Codes).
 3. If the Consultant detects an error (e.g., "Concrete Screed" vs "Cement Paste"), it patches the translation via a strict JSON protocol.
-
 
 * **EFFICIENCY:** Includes a length-heuristic filter to only trigger the Consultant on complex technical sentences, skipping simple headers to save inference time.
 
@@ -81,7 +78,6 @@ Ollama is the engine that allows you to run powerful AI models locally without i
 * Windows: Visit [https://ollama.com/download/windows](https://ollama.com/download/windows) and run the .exe installer.
 * macOS: Visit [https://ollama.com/download/mac](https://ollama.com/download/mac) and download the disk image.
 * Linux: Run `curl -fsSL https://ollama.com/install.sh | sh` in your terminal.
-
 
 2. **Verify:** Open terminal/cmd and run `ollama --version`.
 
@@ -128,34 +124,43 @@ These models are used to double-check terminology but not for the main translati
 * Link: [https://ollama.com/ALIENTELLIGENCE/engineeringtechnicalmanuals](https://ollama.com/ALIENTELLIGENCE/engineeringtechnicalmanuals)
 * **Command:** `ollama pull ALIENTELLIGENCE/engineeringtechnicalmanuals`
 
-
 * **[CONSULTANT B] STRUCTURAL LLAMA**
 * Description: Deep knowledge of structural engineering terms (Concrete, Beams, Loads).
 * Link: [https://ollama.com/joreilly86/structural_llama](https://ollama.com/joreilly86/structural_llama)
 * **Command:** `ollama pull joreilly86/structural_llama`
 
-
-
 ### STEP C: PYTHON ENVIRONMENT & COMPILING TO EXECUTABLE
 
-You can run as a script or compile to a standalone .exe to avoid installing Python on other machines.
+You can run the application as a script (for development) or compile it into a standalone `.exe` that runs on other machines without needing Python installed.
 
 #### OPTION 1: RUNNING AS A SCRIPT (DEV MODE)
 
-1. Install Python 3.8+: [https://python.org](https://python.org)
-2. Create Virtual Env (Recommended):
-* Windows: `python -m venv venv` then `venv\Scripts\activate`
-* Mac/Linux: `python3 -m venv venv` then `source venv/bin/activate`
+1.  **Install Python 3.10+**: [https://python.org](https://python.org)
+2.  **Create Virtual Env (Recommended but Optional)**:
+    * Windows: `python -m venv venv` then `venv\Scripts\activate`
+    * Mac/Linux: `python3 -m venv venv` then `source venv/bin/activate`
+3.  **Install Libraries**:
+    `pip install ollama python-docx langdetect pyinstaller`
 
+#### OPTION 2: COMPILING TO STANDALONE EXECUTABLE (DEPLOYMENT MODE)
 
-3. Install Libs: `pip install ollama python-docx langdetect pyinstaller`
+We provide a pre-configured `translator_gui.spec` file. This file automatically handles hidden imports (for `langdetect` and `docx` templates) and excludes heavy libraries (numpy, pandas) to keep the file size small.
 
-#### OPTION 2: COMPILING TO OPTIMIZED EXECUTABLE (DEPLOYMENT MODE)
+**You do NOT need a virtual environment** for this to work, provided the required libraries are installed in your current Python environment.
 
-We use PyInstaller with specific exclusions to remove bloat (numpy, pandas, etc.) reducing size by ~60MB.
+1.  **Ensure Requirements are Installed**:
+    Make sure you have installed the necessary libraries (see Option 1, Step 3).
 
-1. Activate your virtual environment (see above).
-2. Run the compilation command for your OS:
+2.  **Run the Build Command**:
+    Open your terminal/command prompt in the project folder and run:
+
+    ```bash
+    python -m PyInstaller translator_gui.spec
+    ```
+    *(Note: Using `python -m ...` ensures the correct PyInstaller version is used, avoiding path errors).*
+
+3.  **Locate the Application**:
+    The standalone executable (`translator_gui.exe`) will be generated in the `dist/` folder. You can move this file to any other computer (Windows 10/11) and it will run immediately.
 
 **[WINDOWS BUILD]**
 
