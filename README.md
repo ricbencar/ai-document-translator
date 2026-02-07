@@ -95,7 +95,7 @@ The GUI detects installed models. You must "pull" (download) them via terminal f
 * **Pros:** Best balance of speed, formatting adherence, and technical accuracy.
 * **Hardware:** 16GB+ RAM (Required for 27b version).
 * **Link:** [https://ollama.com/library/translategemma](https://ollama.com/library/translategemma)
-* **> Command:** `ollama pull translategemma:27b`
+* **Command:** `ollama pull translategemma:27b`
 
 #### OPTION 2: THE POWERHOUSE: GPT-OSS 20B
 
@@ -103,21 +103,21 @@ The GUI detects installed models. You must "pull" (download) them via terminal f
 * **Pros:** Superior semantic understanding. Less likely to misinterpret context.
 * **Cons:** Slower generation. Requires a powerful computer (16GB+ RAM or 12GB+ VRAM GPU).
 * **Link:** [https://ollama.com/library/gpt-oss](https://ollama.com/library/gpt-oss)
-* **> Command:** `ollama pull gpt-oss:20b`
+* **Command:** `ollama pull gpt-oss:20b`
 
 #### OPTION 3: THE POLYGLOT: Qwen-MT
 
 * **Description:** Alibaba's model specialized specifically for translation tasks. Trained on massive multilingual corpora, it is the gold standard for Asian languages (Chinese/Japanese/Korean) and handles technical manuals with high precision.
 * **Pros:** Exceptional for CJK languages. Very stable output structure.
 * **Link:** [https://ollama.com/library/qwen-mt](https://ollama.com/library/qwen-mt)
-* **> Command:** `ollama pull qwen-mt`
+* **Command:** `ollama pull qwen-mt`
 
 #### OPTION 4: THE SPEEDSTER: Qwen 2.5 (7B)
 
 * **Description:** A highly efficient general-purpose model. While not exclusively a translator, its instruction-following capabilities are top-tier for its size. Perfect for drafting or when running on legacy hardware (older laptops).
 * **Pros:** Extremely fast. Low resource usage.
 * **Link:** [https://ollama.com/library/qwen2.5](https://ollama.com/library/qwen2.5)
-* **> Command:** `ollama pull qwen2.5`
+* **Command:** `ollama pull qwen2.5`
 
 #### --- SECONDARY CONSULTANT MODELS (OPTIONAL) ---
 
@@ -126,13 +126,13 @@ These models are used to double-check terminology but not for the main translati
 * **[CONSULTANT A] ENGINEERING MANUALS**
 * Description: Specialized in the tone and vocabulary of technical manuals.
 * Link: [https://ollama.com/ALIENTELLIGENCE/engineeringtechnicalmanuals](https://ollama.com/ALIENTELLIGENCE/engineeringtechnicalmanuals)
-* **> Command:** `ollama pull ALIENTELLIGENCE/engineeringtechnicalmanuals`
+* **Command:** `ollama pull ALIENTELLIGENCE/engineeringtechnicalmanuals`
 
 
 * **[CONSULTANT B] STRUCTURAL LLAMA**
 * Description: Deep knowledge of structural engineering terms (Concrete, Beams, Loads).
 * Link: [https://ollama.com/joreilly86/structural_llama](https://ollama.com/joreilly86/structural_llama)
-* **> Command:** `ollama pull joreilly86/structural_llama`
+* **Command:** `ollama pull joreilly86/structural_llama`
 
 
 
