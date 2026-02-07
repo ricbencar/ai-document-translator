@@ -1,5 +1,3 @@
----
-
 # AI DOCUMENT TRANSLATOR (ENGINEERING EDITION) - GUI
 
 **Version:** 1.0 (Final Production / Batch Support / Anti-Leak / Deep Context)
