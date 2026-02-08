@@ -4,200 +4,86 @@
    Version: 1.0 (Final Production / Batch Support / Anti-Leak / Deep Context)
 ====================================================================================================
 
-1. SYSTEM ARCHITECTURE & PHILOSOPHY
-    -----------------------------------
-    This application represents a paradigm shift from standard machine translation. It is architected 
-    as a "Document Reconstruction Engine" rather than a linear text processor. 
-    
-    [THE "DIGITAL TWIN" METHODOLOGY]
-    Standard translators (Google/DeepL) often strip formatting to process raw text, destroying the 
-    document's layout. This engine employs a "Digital Twin" approach:
-        a) ATOMIC DISSECTION: The Python-docx library is leveraged to surgically parse the .docx 
-           file into its atomic XML constituents (Paragraphs > Runs > Tables > Cells).
-        b) DNA EXTRACTION: Before translation, the engine extracts the "Visual DNA" of every text 
-           segment. This includes Font Family, Size, RGB Color, Highlight (Background), Bold/Italic/
-           Underline flags, and complex XML Numbering properties.
-        c) COMPILER INJECTION: Text is encapsulated with semantic tags (e.g., "{b}Text{/b}") and 
-           injected into a local Large Language Model (LLM) via Ollama. The LLM is treated not as 
-           a chatbot, but as a deterministic "Text Compiler" with temperature=0.0.
-        d) HALLUCINATION SANITIZATION: The output passes through a rigorous "Firewall" to strip 
-           AI meta-commentary, ensuring only pure translation data remains.
-        e) SURGICAL RECONSTRUCTION: The document is rebuilt from zero. The translated text is 
-           fused with the original "Visual DNA" and injected back into the XML skeleton, preserving 
-           headers, footers, and complex table layouts.
+1. CORE METHODOLOGY: THE "DIGITAL TWIN"
+   -------------------------------------------------------------------------------------------------
+   This application operates as a Document Reconstruction Engine, not just a text translator.
+   It treats .docx files as hierarchical XML structures to preserve strict visual fidelity.
 
-    2. CORE CAPABILITIES
-    --------------------
-    
-    [A] BATCH PROCESSING ORCHESTRATOR
-        - CONCURRENT QUEUE MANAGEMENT: Capable of ingesting unlimited file paths via the GUI. 
-          The engine isolates file operations in a worker thread to prevent GUI freezing ("Not Responding").
-        - PREDICTIVE WORKLOAD CALCULATION: Performs a "Global Pre-Scan" algorithm that traverses 
-          every section (Body, Header, Footer, Tables) of every file to count total processable blocks. 
-          This ensures the progress bar represents real-time atomic progress, not just "File 1 of 5".
-        - FAULT TOLERANCE: If a single file is corrupt (XML errors), the engine logs the failure 
-          and automatically proceeds to the next file in the queue without crashing the batch.
-
-    [B] ANTI-LEAK FIREWALL (MULTI-LAYERED SANITIZATION)
-        - THE PROBLEM: LLMs are prone to "leaking" internal monologue (e.g., "Here is the translation," 
-          "I cannot translate names," or internal JSON markers).
-        - THE SOLUTION: A heuristic "Regex Firewall" that scrubs the output in five passes:
-            1. CONVERSATIONAL FILLER REMOVAL: Strips introductory phrases ("Sure,", "Note:", "Likely means").
-            2. TAG REPAIR: Detects and fixes broken formatting tags often mangled by AI tokenizers 
-               (e.g., repairing "{/ b}" to "{/b}" or "{tab}" to valid XML tab stops).
-            3. MARKDOWN STRIPPING: Removes unrequested Markdown artifacts (**bold**, ## Header) that 
-               LLMs habitually add.
-            4. ENTITY DECODING: Converts HTML entities (&nbsp;, &lt;) back to Word-compatible unicode.
-            5. INVISIBLE CLEANUP: Purges Unicode Category 'C' (Control characters) and JSON artifacts 
-               (leftover braces or "1.1.1" key prefixes) that corrupt .docx XML.
-
-    [C] REFLEXION & SELF-CORRECTION (ACTOR-CRITIC LOOP)
-        - STABILITY ENGINE: The system implements an "Actor-Critic" architecture. 
-        - PASS 1 (THE ACTOR): The primary model attempts the translation.
-        - PASS 2 (THE CRITIC): An internal logic check analyzes the output for "Chattiness" (length 
-          ratio > 1.8x original) or "Leakage" (detection of forbidden phrases).
-        - PANIC MODE: If the Critic rejects the output, the engine engages "Panic Mode." It discards 
-          the complex prompt and retries using a simplified, high-restriction prompt to force a raw 
-          literal translation, ensuring no data is lost even in difficult segments.
-
-    [D] XML STRUCTURAL & DATA PRESERVATION
-        - NUMBERING INTEGRITY (`numPr`): Engineering specifications rely on strict hierarchy (1.0, 1.1, 1.1.2). 
-          The engine deep-copies the XML `numPr` (Numbering Properties) from the source and re-attaches 
-          it to the translated paragraph. This keeps lists "live" and clickable in Word.
-        - DATA PROTECTION: The engine utilizes Regex pattern matching to identify "Pure Numeric Blocks" 
-          (e.g., "500", "10/2023", "Ø 15mm"). These blocks are bypassed entirely to prevent the AI 
-          from hallucinating numbers (e.g., changing "100" to "one hundred" or "100.0").
-
-    [E] CONSULTANT MODE (DUAL-LLM TERMINOLOGY AUDIT)
-        - THE "TWO-PASS" SYSTEM: Optionally engages a Secondary Expert Model (e.g., trained on ISO Standards).
-        - WORKFLOW:
-            1. The Primary Model (e.g., Gemma 2) drafts the translation.
-            2. The Consultant Model reviews the draft specifically for "Technical Accuracy" (Units, 
-               Material Names, ISO Codes).
-            3. If the Consultant detects an error (e.g., "Concrete Screed" vs "Cement Paste"), it 
-               patches the translation via a strict JSON protocol.
-        - EFFICIENCY: Includes a length-heuristic filter to only trigger the Consultant on complex 
-          technical sentences, skipping simple headers to save inference time.
-
-    [F] COMPILER-STRICT PROMPTING ARCHITECTURE
-        - SYSTEM PROMPT ENGINEERING: The LLM is not prompted as a "Helpful Assistant." It is prompted 
-          as a "Data Processing Engine" with strict Opcodes.
-        - FORMAT ENFORCEMENT: Enforces a JSON-only output structure (`{"t": "translated_string"}`). 
-          This containerization prevents the translation from bleeding into surrounding text and allows 
-          the program to programmatically validate success (checking for valid JSON parsing).
-        - TAG INVARIANCE: Instructions explicitly forbid the translation or removal of injected 
-          tags ({b}, {i}, {tab}), treating them as "Memory Pointers" that must be returned intact.
-
-   3. INSTALLATION & CONFIGURATION GUIDE
-   -------------------------------------
+   - ATOMIC DISSECTION: Uses `python-docx` to surgically parse the file into atomic XML units 
+     (Paragraphs > Runs > Tables > Cells) rather than treating the document as a flat string.
    
-   STEP A: INSTALLING OLLAMA (THE AI RUNTIME)
-   Ollama is the engine that allows you to run powerful AI models locally without internet.
-   1. Download:
-      - Windows: Visit https://ollama.com/download/windows and run the .exe installer.
-      - macOS: Visit https://ollama.com/download/mac and download the disk image.
-      - Linux: Run `curl -fsSL https://ollama.com/install.sh | sh` in your terminal.
-   2. Verify: Open terminal/cmd and run `ollama --version`.
-
-   STEP B: CHOOSING & INSTALLING MODELS
-   The GUI detects installed models. You must "pull" (download) them via terminal first.
-
-    OPTION 1:      THE SPECIALIST: TranslateGemma (Recommended)
-      Description: A fine-tuned version of Google's Gemma 2 (27B), specifically optimized for 
-                   high-fidelity document translation. It excels at adhering to "Compiler-Strict" 
-                   instructions, ensuring formatting tags (like {b}, {tab}) are preserved while 
-                   translating complex engineering syntax without dropping data.
-      Pros:        Best balance of speed, formatting adherence, and technical accuracy.
-      Hardware:    16GB+ RAM (Required for 27b version).
-      Link:        https://ollama.com/library/translategemma
-      > Command:   ollama pull translategemma:27b
-
-    OPTION 2:      THE POWERHOUSE: GPT-OSS 20B
-      Description: A massive open-source model designed to rival commercial APIs like DeepL. 
-                   Its large parameter count allows it to grasp subtle nuances in "Technical Prose" 
-                   and ambiguous sentence structures often found in legal/contractual specs.
-      Pros:        Superior semantic understanding. Less likely to misinterpret context.
-      Cons:        Slower generation. Requires a powerful computer (16GB+ RAM or 12GB+ VRAM GPU).
-      Link:        https://ollama.com/library/gpt-oss
-      > Command:   ollama pull gpt-oss:20b
-
-    OPTION 3:      THE POLYGLOT: Qwen-MT
-      Description: Alibaba's model specialized specifically for translation tasks. Trained on 
-                   massive multilingual corpora, it is the gold standard for Asian languages 
-                   (Chinese/Japanese/Korean) and handles technical manuals with high precision.
-      Pros:        Exceptional for CJK languages. Very stable output structure.
-      Link:        https://ollama.com/library/qwen-mt
-      > Command:   ollama pull qwen-mt
-
-    OPTION 4: THE SPEEDSTER: Qwen 2.5 (7B)
-      Description: A highly efficient general-purpose model. While not exclusively a translator, 
-                   its instruction-following capabilities are top-tier for its size. Perfect for 
-                   drafting or when running on legacy hardware (older laptops).
-      Pros:        Extremely fast. Low resource usage.
-      Link:        https://ollama.com/library/qwen2.5
-      > Command:   ollama pull qwen2.5
-
-    --- SECONDARY CONSULTANT MODELS (OPTIONAL) ---
-    These models are used to double-check terminology but not for the main translation.
-
-    [CONSULTANT A] ENGINEERING MANUALS
-      Description: Specialized in the tone and vocabulary of technical manuals.
-      Link:        https://ollama.com/ALIENTELLIGENCE/engineeringtechnicalmanuals
-      > Command:   ollama pull ALIENTELLIGENCE/engineeringtechnicalmanuals
+   - DNA EXTRACTION: Before translation, the engine extracts the "Visual DNA" of every text segment.
+     This includes Font Family, Size, RGB Color, Highlight, Bold/Italic flags, and critical 
+     XML Numbering properties (`numPr`) to keep lists functional.
    
-    [CONSULTANT B] STRUCTURAL LLAMA
-      Description: Deep knowledge of structural engineering terms (Concrete, Beams, Loads).
-      Link:        https://ollama.com/joreilly86/structural_llama
-      > Command:   ollama pull joreilly86/structural_llama
-
-   STEP C: PYTHON ENVIRONMENT & COMPILING TO EXECUTABLE
-   You can run as a script or compile to a standalone .exe to avoid installing Python on other machines.
-
-   OPTION 1: RUNNING AS A SCRIPT (DEV MODE)
-   1. Install Python 3.8+: https://python.org
-   2. Create Virtual Env (Recommended):
-      - Windows: `python -m venv venv` then `venv\\Scripts\activate`
-      - Mac/Linux: `python3 -m venv venv` then `source venv/bin/activate`
-   3. Install Libs: 
-      `pip install ollama python-docx langdetect pyinstaller`
-
-   OPTION 2: COMPILING TO OPTIMIZED EXECUTABLE (DEPLOYMENT MODE)
-   We use PyInstaller with specific exclusions to remove bloat (numpy, pandas, etc.) reducing size by ~60MB.
+   - COMPILER INJECTION: Text is encapsulated with semantic tags (e.g., "{b}Text{/b}") and injected 
+     into the local LLM. The model is forced into a deterministic "Compiler Mode" (Temp=0.0) 
+     to process syntax without adding conversational filler.
    
-   1. Activate your virtual environment (see above).
-   2. Run the compilation command for your OS:
+   - HALLUCINATION SANITIZATION: The output passes through a multi-layer "Regex Firewall" to strip 
+     AI meta-commentary (e.g., "Here is the translation"), Markdown artifacts, and broken tags.
+   
+   - SURGICAL RECONSTRUCTION: The document is rebuilt from zero. The sanitized translated text is 
+     fused with the original "Visual DNA" and injected back into the XML skeleton, preserving 
+     complex table layouts, headers, and footers exactly as they appeared in the source.
 
-      [WINDOWS BUILD]
-      pyinstaller --noconfirm --onefile --windowed --clean ^
-        --name "AI_Translator_Eng_v5" ^
-        --exclude-module matplotlib --exclude-module numpy --exclude-module pandas ^
-        --exclude-module scipy --exclude-module IPython --exclude-module pytest ^
-        translator_gui.py
+2. PRIMARY TRANSLATION ENGINES (Select One)
+   -------------------------------------------------------------------------------------------------
+   - SPECIALIST: TranslateGemma 3 (27B) - Optimized for high-fidelity technical specs.
+     > Command: ollama pull translategemma:27b
+   - POWERHOUSE: GPT-OSS 20B - Superior semantic understanding for legal/contractual specs.
+     > Command: ollama pull gpt-oss:20b
+   - POLYGLOT: Qwen-MT (Qwen 3) - Gold standard for CJK (Chinese/Japanese/Korean) manuals.
+     > Command: ollama pull qwen-mt
+   - SPEEDSTER: Qwen 3 (4B) - Ultra-fast; designed for legacy hardware and 8GB RAM systems.
+     > Command: ollama pull qwen3:4b
+   - LOCALIZER: T&L Specialist (50B) - Specialized for cultural adaptation and EIA reports.
+     > Command: ollama pull ALIENTELLIGENCE/translationandlocalizationspecialist
 
-      [macOS BUILD]
-      pyinstaller --noconfirm --onefile --windowed --clean \
-        --name "AI_Translator_Eng_v5" \
-        --exclude-module matplotlib --exclude-module numpy --exclude-module pandas \
-        --exclude-module scipy --exclude-module IPython --exclude-module pytest \
-        translator_gui.py
+3. SECONDARY CONSULTANT MODELS (Terminology Audit)
+   -------------------------------------------------------------------------------------------------
+   Used in "Consultant Mode" to double-check technical nomenclature without translating.
+   - Engineering Manuals: `ollama pull ALIENTELLIGENCE/engineeringtechnicalmanuals`
+   - Structural Engineer: `ollama pull joreilly86/structural_llama_3.0`
+   - Civil Structure V2:  `ollama pull ALIENTELLIGENCE/civilstructureengineerv2`
+   - Geotechnical:        `ollama pull ALIENTELLIGENCE/geotechnicalengineer`
+   - Marine/Naval:        `ollama pull ALIENTELLIGENCE/marineengineernavalarchitect`
+   - Mechanical V2:       `ollama pull ALIENTELLIGENCE/mechanicalengineer`
+   - Electrical V2:       `ollama pull ALIENTELLIGENCE/electricalengineerv2`
+   - Chemical Engineer:   `ollama pull ALIENTELLIGENCE/chemicalengineer`
+   - Industrial Engineer: `ollama pull ALIENTELLIGENCE/industrialengineer`
+   - Environmental Eng:   `ollama pull ALIENTELLIGENCE/environmentalengineer`
+   - Env. Consulting:     `ollama pull ALIENTELLIGENCE/environmentalconsulting`
 
-      [LINUX BUILD]
-      pyinstaller --noconfirm --onefile --windowed --clean \
-        --name "ai_translator_eng_v5" \
-        --exclude-module matplotlib --exclude-module numpy --exclude-module pandas \
-        --exclude-module scipy \
-        translator_gui.py
+4. OPERATIONAL WORKFLOW
+   -------------------------------------------------------------------------------------------------
+   1. Initialize: Run `python translator_gui.py` and ensure the Ollama service is active.
+   2. Ingest: Click "Browse" to select single or multiple .docx files for batching.
+   3. Configure: Choose Source/Target languages and select your Primary Model.
+   4. Execute: Click "Start Translation" and monitor progress via the real-time status log.
+   5. Verify: Retrieve code-suffixed files (e.g., _DE.docx) from the source directory.
 
-   3. Result: The standalone app will be in the `dist/` folder.
+5. KEY BIBLIOGRAPHY
+   -------------------------------------------------------------------------------------------------
+   FOUNDATIONAL ARCHITECTURES
+   - Jurafsky & Martin (2026): *Speech and Language Processing* (Transformer Foundations).
+   - Tunstall et al. (2022): *NLP with Transformers* (Hugging Face / Practical Guide).
+   - Raschka (2025): *Build a Large Language Model (From Scratch)* (Internal Mechanics).
 
-   4. HOW TO RUN
-   -------------
-   1. Run `python translator_gui.py` (or open the compiled Exe).
-   2. Click "Browse" and select one or multiple .docx files.
-   3. Choose your Source/Target languages via the Dropdowns (e.g., English UK).
-   4. Select your Primary Model.
-   5. Click "Start Translation".
+   MACHINE TRANSLATION & LOCALIZATION
+   - Koehn (2020): *Neural Machine Translation* (Core NMT Principles).
+   - Kenny (2022): *Machine Translation for Everyone* (MT Literacy & Workflows).
+   - Sun et al. (2025): *Translation Studies in the Age of AI* (Theory & Practice).
 
+   ENGINEERING & PRODUCTION
+   - Huyen (2025): *AI Engineering* (Production Systems & Scalability).
+   - Iusztin & Labonne (2025): *The LLM Engineering Handbook* (RAG & Fine-tuning).
+   - Bouchard & Peters (2025): *Building LLMs for Production* (Ops & Latency).
+
+   ALIGNMENT & ETHICS
+   - Christian (2020): *The Alignment Problem* (Safety & Value Alignment).
+   - Narayanan & Kapoor (2024): *AI Snake Oil* (Critical capabilities analysis).
+   
 ====================================================================================================
 """
 
@@ -889,7 +775,7 @@ class TranslatorApp(tk.Tk):
         header = ttk.Frame(self)
         header.pack(fill="x", padx=main_pad, pady=(20, 10))
         ttk.Label(header, text="AI DOCUMENT TRANSLATOR", style="Header.TLabel").pack(side="left")
-        ttk.Label(header, text="  |  Engineering & Technical Specs", foreground="#888").pack(side="left", pady=(8,0))
+        ttk.Label(header, text="  |  Engineering Documents", foreground="#888").pack(side="left", pady=(8,0))
 
         # File
         f_frame = ttk.LabelFrame(self, text="INPUT DOCUMENT(S) (.docx)", padding=15)
@@ -903,18 +789,13 @@ class TranslatorApp(tk.Tk):
         
         # --- LANGUAGE SELECTION ---
         language_options = [
-            "Portuguese (Portugal)",
-            "Portuguese (Brazil)",
-            "English (UK)",
-            "English (US)",
-            "Spanish",
-            "French",
-            "German",
-            "Italian",
-            "Chinese (Mandarin)",
-            "Arabic",
-            "Japanese",
-            "Korean"
+            "Portuguese (Portugal)", "Portuguese (Brazil)", "English (UK)",       "English (US)",
+            "Spanish",               "French",              "German",             "Italian",
+            "Chinese (Mandarin)",    "Arabic",              "Japanese",           "Korean",
+            "Czech",                 "Danish",              "Dutch",              "Finnish",
+            "Greek",                 "Hindi",               "Hungarian",          "Indonesian",
+            "Norwegian",             "Polish",              "Romanian",           "Russian",
+            "Swedish",               "Thai",                "Turkish",            "Vietnamese"
         ]
 
         ttk.Label(c_frame, text="Source:").grid(row=0, column=0, sticky="w", padx=5)
@@ -927,34 +808,60 @@ class TranslatorApp(tk.Tk):
         
         # --- DYNAMIC MODEL LOADING ---
         available_models = self.get_installed_models()
-        default_model = available_models[0] if available_models else ""
-
-        # Smart Priority Logic: 27b > 12b > 20b > First Available
-        if any("translategemma" in m and "27b" in m for m in available_models):
-            match = next((m for m in available_models if "translategemma" in m and "27b" in m), default_model)
-            self.model_primary.set(match)
-        elif any("translategemma" in m and "12b" in m for m in available_models):
-            match = next((m for m in available_models if "translategemma" in m and "12b" in m), default_model)
-            self.model_primary.set(match)
-        elif any("gpt-oss:20b" in m for m in available_models):
-            match = next((m for m in available_models if "gpt-oss:20b" in m), default_model)
-            self.model_primary.set(match)
-        elif available_models:
-            self.model_primary.set(available_models[0])
+        
+        # 1. Validate Primary Model (Smart Priority)
+        # If the currently set primary model isn't installed, try to find a smart default
+        if self.model_primary.get() not in available_models:
+            if any("translategemma" in m and "27b" in m for m in available_models):
+                match = next((m for m in available_models if "translategemma" in m and "27b" in m), "")
+                self.model_primary.set(match)
+            elif any("translategemma" in m and "12b" in m for m in available_models):
+                match = next((m for m in available_models if "translategemma" in m and "12b" in m), "")
+                self.model_primary.set(match)
+            elif any("gpt-oss:20b" in m for m in available_models):
+                match = next((m for m in available_models if "gpt-oss:20b" in m), "")
+                self.model_primary.set(match)
+            elif available_models:
+                self.model_primary.set(available_models[0])
+            else:
+                self.model_primary.set("")
 
         ttk.Label(c_frame, text="Primary Model:").grid(row=1, column=0, sticky="w", padx=5, pady=10)
         cbox_m = ttk.Combobox(c_frame, textvariable=self.model_primary, width=23, state="readonly")
         cbox_m['values'] = available_models
         cbox_m.grid(row=1, column=1, padx=5)
         
+        # 2. Validate Consultant Model (Strict Check)
+        # If the default hardcoded consultant isn't installed, force it to "None"
+        current_secondary = self.model_secondary.get()
+        
+        # Check for exact match OR match with ':latest' tag
+        is_secondary_installed = (
+            current_secondary in available_models or 
+            f"{current_secondary}:latest" in available_models
+        )
+        
+        if not is_secondary_installed:
+            self.model_secondary.set("None")
+
         ttk.Label(c_frame, text="Consultant:").grid(row=1, column=2, sticky="w", padx=(20,5))
         cbox_c = ttk.Combobox(c_frame, textvariable=self.model_secondary, width=23, state="readonly")
         cbox_c['values'] = ["None"] + available_models
         cbox_c.grid(row=1, column=3, padx=5)
-        
+
+        # --- TEMPERATURE SECTION ---
         ttk.Label(c_frame, text="Temp:").grid(row=2, column=0, sticky="w", padx=5)
-        ttk.Scale(c_frame, variable=self.temperature, from_=0.0, to=1.0).grid(row=2, column=1, sticky="ew", padx=5)
-        ttk.Label(c_frame, textvariable=self.temperature).grid(row=2, column=2, sticky="w")
+        
+        # 1. Create a specific variable for the formatted text
+        self.temp_display = tk.StringVar(value=f"{self.temperature.get():.2f}")
+
+        # 2. Define a callback to formatting the number as the slider moves
+        def update_temp_label(val):
+            self.temp_display.set(f"{float(val):.2f}")
+
+        # 3. Add the 'command' argument to the Scale and bind the Label to the formatted string
+        ttk.Scale(c_frame, variable=self.temperature, from_=0.0, to=1.0, command=update_temp_label).grid(row=2, column=1, sticky="ew", padx=5)
+        ttk.Label(c_frame, textvariable=self.temp_display, width=4).grid(row=2, column=2, sticky="w")
 
         # Actions
         a_frame = ttk.Frame(self)
