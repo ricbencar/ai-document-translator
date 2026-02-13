@@ -1,72 +1,70 @@
 # AI DOCUMENT TRANSLATOR (ENGINEERING EDITION) - GUI
 
-**Version:** 1.0 (Final Production / Batch Support / Anti-Leak / Deep Context)
-
 ---
 
 ## 1. SYSTEM ARCHITECTURE & METHODOLOGY
 
-This AI application operates as a document reconstruction engine designed to maintain strict fidelity to the original file's layout and formatting. Unlike standard machine translation workflows that often flatten documents into raw text, this system preserves the structural integrity of `.docx` files by treating them as a hierarchy of XML constituents rather than a simple linear string. By separating content from presentation, the software ensures that translated documents retain their exact visual organization.
+This application operates as a **Document Reconstruction Engine**, utilizing a **"Digital Twin"** approach to treat `.docx` files as hierarchical XML structures rather than flat text strings. By surgically separating content from presentation, the software ensures that translated documents retain their exact visual organization, functional logic, and automatic indexing capabilities.
 
-The workflow relies on a multistage process beginning with the `python-docx` library, which parses the file into atomic units such as paragraphs, runs, and table cells. The system records the precise formatting properties—including font styles, colors, and numbering—associated with every text segment. The text is then processed by a local Large Language Model (LLM) treated as a deterministic compiler, where content is encapsulated in semantic tags to guide the translation. After a verification step removes any conversational filler or meta-commentary, the document is rebuilt by injecting the translated text back into the original XML structure, seamlessly preserving headers, footers, and complex formatting.
+The workflow relies on a multistage process using the `python-docx` library and custom `lxml` handlers to parse the file into atomic units (Paragraphs, Runs, and Table Cells). The system records precise formatting properties—including font styles, RGB colors, and paragraph styles—associated with every text segment. The text is then processed by a local Large Language Model (LLM) treated as a deterministic compiler. After a multi-pass sanitization firewall removes conversational filler, the document is rebuilt by injecting the translated text back into the original XML structure.
 
 ### [THE "DIGITAL TWIN" METHODOLOGY]
 
-Standard translators (Google/DeepL) often strip formatting to process raw text, destroying the document's layout. This engine employs a **"Digital Twin"** approach:
+Standard translators often strip formatting to process raw text. This engine employs a specialized architecture to maintain 100% fidelity:
 
-* **ATOMIC DISSECTION:** The Python-docx library is leveraged to surgically parse the .docx file into its atomic XML constituents (Paragraphs > Runs > Tables > Cells).
-* **DNA EXTRACTION:** Before translation, the engine extracts the "Visual DNA" of every text segment. This includes Font Family, Size, RGB Color, Highlight (Background), Bold/Italic/Underline flags, and complex XML Numbering properties.
-* **COMPILER INJECTION:** Text is encapsulated with semantic tags (e.g., "{b}Text{/b}") and injected into a local Large Language Model (LLM) via Ollama. The LLM is treated not as a chatbot, but as a deterministic "Text Compiler" with temperature=0.0.
-* **HALLUCINATION SANITIZATION:** The output passes through a rigorous "Firewall" to strip AI meta-commentary, ensuring only pure translation data remains.
-* **SURGICAL RECONSTRUCTION:** The document is rebuilt from zero. The translated text is fused with the original "Visual DNA" and injected back into the XML skeleton, preserving headers, footers, and complex table layouts.
-
----
+* **ATOMIC DISSECTION (NAMESPACE SAFE):** Uses `python-docx` and custom handlers to surgically parse paragraphs and runs. Crucially, it utilizes a `robust_xml_copy` mechanism that preserves distinct XML namespaces (`nsmap`), ensuring MathType equations (`m:oMath`), Citations, and Smart Tags remain functional.
+* **LEGACY FIELD LOCKING (SEQ/REF/PAGEREF):** Engineering documents rely heavily on cross-references (e.g., "See Figure 1-1") and sequences. The engine detects these legacy fields (`w:fldChar`, `w:instrText`), extracts them as immutable tokens (`{{FLD_x}}`), and locks them during translation. This prevents the AI from breaking internal document links or page numbering logic.
+* **AUTOMATIC INDEX RECOVERY (F9 READY):** The engine avoids manually calculating complex numbering (which often corrupts XML). Instead, it relies on Paragraph Styles and injects a "Dirty" flag (`<w:updateFields w:val="true"/>`) into the document settings. This forces Microsoft Word to auto-prompt the user to **"Update Fields"** upon opening, ensuring Tables of Contents, Lists of Figures, and Cross-References are recalculated natively.
+* **DNA EXTRACTION & COLOR PRESERVATION:** Before translation, the engine maps the "Visual DNA" of every segment, explicitly detecting Font Colors (Hex Codes), Bold, Italic, and Super/Subscript. These are injected as semantic tags (e.g., `{c:FF0000}`, `{b}`) to guide the model.
+* **DUAL-MODE INJECTION:** The engine performs a "Pre-Flight Check" to determine the model's capabilities. **Compiler Mode** (JSON) forces strict structure for maximum safety, while **Direct Mode** serves as a fallback for models that fail JSON validation.
+* **SURGICAL RECONSTRUCTION:** Paragraphs are rebuilt using a **Stateful Parser with Atomic Commit**. It builds a "plan" first; if parsing fails, it falls back to raw text. It explicitly avoids re-injecting raw `numPr` (Numbering Properties), allowing the document's native Styles to handle numbering cleanly.
 
 ## 2. CORE CAPABILITIES
 
 ### [A] BATCH PROCESSING ORCHESTRATOR
 
-* **CONCURRENT QUEUE MANAGEMENT:** Capable of ingesting unlimited file paths via the GUI. The engine isolates file operations in a worker thread to prevent GUI freezing ("Not Responding").
-* **PREDICTIVE WORKLOAD CALCULATION:** Performs a "Global Pre-Scan" algorithm that traverses every section (Body, Header, Footer, Tables) of every file to count total processable blocks. This ensures the progress bar represents real-time atomic progress, not just "File 1 of 5".
-* **FAULT TOLERANCE:** If a single file is corrupt (XML errors), the engine logs the failure and automatically proceeds to the next file in the queue without crashing the batch.
+* **CONCURRENT QUEUE MANAGEMENT:** Handles multiple `.docx` files simultaneously via the GUI. The engine isolates file operations in a background `worker_thread` to keep the interface responsive.
+* **PREDICTIVE WORKLOAD CALCULATION:** Performs a "Global Pre-Scan" across headers, footers, body text, and tables to count total processable blocks. This allows the progress bar to provide real-time ETA based on atomic progress.
+* **FAULT TOLERANCE:** If a directory is read-only, the engine automatically redirects output to a `translated_docs` fallback folder.
 
 ### [B] ANTI-LEAK FIREWALL (MULTI-LAYERED SANITIZATION)
 
-* **THE PROBLEM:** LLMs are prone to "leaking" internal monologue (e.g., "Here is the translation," "I cannot translate names," or internal JSON markers).
-* **THE SOLUTION:** A heuristic "Regex Firewall" that scrubs the output in five passes:
-1. **CONVERSATIONAL FILLER REMOVAL:** Strips introductory phrases ("Sure,", "Note:", "Likely means").
-2. **TAG REPAIR:** Detects and fixes broken formatting tags often mangled by AI tokenizers (e.g., repairing "{/ b}" to "{/b}" or "{tab}" to valid XML tab stops).
-3. **MARKDOWN STRIPPING:** Removes unrequested Markdown artifacts (**bold**, ## Header) that LLMs habitually add.
-4. **ENTITY DECODING:** Converts HTML entities (&nbsp;, <) back to Word-compatible unicode.
-5. **INVISIBLE CLEANUP:** Purges Unicode Category 'C' (Control characters) and JSON artifacts (leftover braces or "1.1.1" key prefixes) that corrupt .docx XML.
+* **THE PROBLEM:** LLMs, especially reasoning models, often "leak" internal monologues or conversational fillers.
+* **THE SOLUTION:** An aggressive "Sanitization Firewall" that scrubs output in real-time:
+1. **THINKING BLOCK PURGE:** Strips `<think>`, `<reasoning>`, and `<scratchpad>` traces common in models like DeepSeek R1.
+2. **CONVERSATIONAL FILLER REMOVAL:** Uses a heuristic "Firewall" to strip phrases like "Sure,", "Note:", or "Translation:".
+3. **SYNTAX REPAIR:** Fixes hanging backslashes (`\`) and escaped quotes (`\"`) that break reconstruction.
+4. **TAG HEALER:** Automatically repairs spacing errors (e.g., `{ / b}` to `{/b}`) and auto-closes unclosed formatting tags.
+5. **ENTITY DECODING:** Fixes double-encoded unicode and raw byte artifacts to ensure clean text.
 
 ### [C] REFLEXION & SELF-CORRECTION (ACTOR-CRITIC LOOP)
 
-* **STABILITY ENGINE:** The system implements an "Actor-Critic" architecture.
-* **PASS 1 (THE ACTOR):** The primary model attempts the translation.
-* **PASS 2 (THE CRITIC):** An internal logic check analyzes the output for "Chattiness" (length ratio > 1.8x original) or "Leakage" (detection of forbidden phrases).
-* **PANIC MODE:** If the Critic rejects the output, the engine engages "Panic Mode." It discards the complex prompt and retries using a simplified, high-restriction prompt to force a raw literal translation, ensuring no data is lost even in difficult segments.
+* **STABILITY ENGINE:** Implements "Reflexion" logic to validate output before injection.
+* **PASS 1 (THE ACTOR):** The model attempts translation using adaptive context (Rolling Buffer of the last 2000 characters).
+* **PASS 2 (THE CRITIC):** Analyzes the output for "Chattiness," "Wrong Language," or "Explicit Leaks".
+* **PANIC MODE:** If the check fails, the engine engages "Panic Mode," discarding the complex prompt and retrying with a high-restriction, direct translation command to ensure no data is lost.
 
-### [D] XML STRUCTURAL & DATA PRESERVATION
+### [D] GLOBAL CONTEXT & INTELLIGENT EXCLUSION
 
-* **NUMBERING INTEGRITY (`numPr`):** Engineering specifications rely on strict hierarchy (1.0, 1.1, 1.1.2). The engine deep-copies the XML `numPr` (Numbering Properties) from the source and re-attaches it to the translated paragraph. This keeps lists "live" and clickable in Word.
-* **DATA PROTECTION:** The engine utilizes Regex pattern matching to identify "Pure Numeric Blocks" (e.g., "500", "10/2023", "Ø 15mm"). These blocks are bypassed entirely to prevent the AI from hallucinating numbers (e.g., changing "100" to "one hundred" or "100.0").
+* **SMART CONTEXT SCAN:** Performs an initial scan of the document header and first 1000 words to establish a **Global Domain Context** (e.g., Civil vs. Electrical Engineering).
+* **ADAPTIVE CONTEXT WINDOW:** Maintains a rolling `context_buffer` of recent translations to prevent semantic drift.
+* **SMART EXCLUSION PROTOCOLS:**
+* **Numeric Blocks:** Skips "Pure Numeric" segments to prevent hallucination of values.
+* **Table Abbreviation Filter:** Implements a specific heuristic to detect and **SKIP** short, uppercase abbreviations inside table cells (e.g., "PA", "N", "ID", "VA"). This prevents the AI from attempting to translate technical codes or units that should remain invariant.
 
-### [E] CONSULTANT MODE (DUAL-LLM TERMINOLOGY AUDIT)
+### [E] CONSULTANT MODE (TERMINOLOGY AUDIT)
 
-* **THE "TWO-PASS" SYSTEM:** Optionally engages a Secondary Expert Model (e.g., trained on ISO Standards).
+* **THE "TWO-PASS" SYSTEM:** Optionally engages a Secondary "Consultant" Model to review technical nomenclature.
 * **WORKFLOW:**
-1. The Primary Model (e.g., TranslateGemma) drafts the translation.
-2. The Consultant Model reviews the draft specifically for "Technical Accuracy" (Units, Material Names, ISO Codes).
-3. If the Consultant detects an error (e.g., "Concrete Screed" vs "Cement Paste"), it patches the translation via a strict JSON protocol.
+1. The Primary Model drafts the translation.
+2. The Consultant reviews the draft specifically for technical errors (e.g., "Driver" vs. "Controlador").
+3. **TAG INVARIANCE GATE:** The engine validates that the consultant did not remove or mangle formatting tags before accepting any refinement.
 
-* **EFFICIENCY:** Includes a length-heuristic filter to only trigger the Consultant on complex technical sentences, skipping simple headers to save inference time.
+### [F] COMPILER-STRICT PROMPTING & GLOSSARY LOCK
 
-### [F] COMPILER-STRICT PROMPTING ARCHITECTURE
-
-* **SYSTEM PROMPT ENGINEERING:** The LLM is not prompted as a "Helpful Assistant." It is prompted as a "Data Processing Engine" with strict Opcodes.
-* **FORMAT ENFORCEMENT:** Enforces a JSON-only output structure (`{"t": "translated_string"}`). This containerization prevents the translation from bleeding into surrounding text and allows the program to programmatically validate success (checking for valid JSON parsing).
-* **TAG INVARIANCE:** Instructions explicitly forbid the translation or removal of injected tags ({b}, {i}, {tab}), treating them as "Memory Pointers" that must be returned intact.
+* **SYSTEM PROMPT ENGINEERING:** The LLM is prompted as a "Data Processing Engine" with strict Opcodes and Engineering Constraints.
+* **TERMINOLOGY LOCK:** A hard-coded Engineering Glossary is injected into every prompt to enforce consistency for critical items like "Yield Strength" or "Manifold".
+* **TAG INVARIANCE:** The engine treats tags like `{b}`, `{i}`, `{tab}`, and `{{FLD_x}}` as "Memory Pointers" that must be returned intact.
 
 ---
 
@@ -91,21 +89,23 @@ The GUI automatically detects installed models, but they must be "pulled" (downl
 
 These models are responsible for the core document reconstruction. They are ranked by their ability to handle technical syntax and maintain formatting.
 
-#### OPTION 1: THE SPECIALIST: TranslateGemma (Recommended)
+Here is the updated section with the positions swapped, making **GPT-OSS** the primary recommendation.
 
-* **Description:** A specialized variant of Google's **Gemma 3 (27B)**, TranslateGemma is optimized for high-fidelity document translation through a two-stage distillation process from Gemini models. It is specifically engineered to function as a deterministic processor, excelling at "Compiler-Strict" instruction following. This ensures that critical structural tags (like `{b}`, `{tab}`, or `{i}`) are preserved as anchors while complex engineering syntax is translated without data loss.
-* **Pros:** Exceptional technical accuracy, best-in-class adherence to formatting constraints, and robust resistance to "instruction drift" in long-form technical manuals.
-* **Hardware:** 24GB+ RAM recommended for the 27B version (16GB+ for highly quantized 4-bit versions). Runs optimally on a single high-end GPU.
-* **Link:** [https://ollama.com/library/translategemma](https://ollama.com/library/translategemma)
-* **Command:** ```ollama pull translategemma:27b```
-
-#### OPTION 2: THE POWERHOUSE: GPT-OSS 20B
+#### OPTION 1: THE POWERHOUSE: GPT-OSS 20B (Recommended)
 
 * **Description:** Developed by OpenAI under the Apache 2.0 license, GPT-OSS 20B is a state-of-the-art **Mixture-of-Experts (MoE)** reasoning model (21B total / 3.6B active parameters). It is designed to deliver local reasoning performance comparable to the **o3-mini** series. Trained on a massive corpus focused on STEM, coding, and technical prose, it is ideal for "Deep Context" tasks where the model must navigate complex engineering constraints and ambiguous sentence structures.
 * **Pros:** Features **Configurable Reasoning Levels** (Low, Medium, High) allowing you to trade speed for deeper logical analysis. It excels at "Chain-of-Thought" processing, ensuring the semantic meaning of engineering specs is maintained through complex translations.
 * **Hardware:** Optimized for consumer hardware with **16GB VRAM**. Native MXFP4 quantization allows the full 21B logic to fit into standard 16GB GPU memory.
 * **Link:** [https://ollama.com/library/gpt-oss](https://ollama.com/library/gpt-oss)
-* **Command:** ```ollama pull gpt-oss:20b```
+* **Command:** `ollama pull gpt-oss:20b`
+
+#### OPTION 2: THE SPECIALIST: TranslateGemma
+
+* **Description:** A specialized variant of Google's **Gemma 3 (27B)**, TranslateGemma is optimized for high-fidelity document translation through a two-stage distillation process from Gemini models. It is specifically engineered to function as a deterministic processor, excelling at "Compiler-Strict" instruction following. This ensures that critical structural tags (like `{b}`, `{tab}`, or `{i}`) are preserved as anchors while complex engineering syntax is translated without data loss.
+* **Pros:** Exceptional technical accuracy, best-in-class adherence to formatting constraints, and robust resistance to "instruction drift" in long-form technical manuals.
+* **Hardware:** 24GB+ RAM recommended for the 27B version (16GB+ for highly quantized 4-bit versions). Runs optimally on a single high-end GPU.
+* **Link:** [https://ollama.com/library/translategemma](https://ollama.com/library/translategemma)
+* **Command:** `ollama pull translategemma:27b`
 
 #### OPTION 3: THE POLYGLOT: Qwen-MT
 
@@ -300,7 +300,7 @@ To ensure a successful translation and document reconstruction, follow these ope
 1. **Initialize the Environment and Application**
 * **Verify Ollama:** Ensure the Ollama service is active in your system tray. The application requires a live connection to the Ollama local API to detect and communicate with your models.
 * **Launch the Interface:** Run `python translator_gui.py` from your terminal or double-click the compiled `translator_gui.exe` in the `dist/` folder.
-* **Model Sync:** Upon startup, the GUI will automatically query your local Ollama library. Confirm that your desired models (e.g., TranslateGemma) appear in the "Primary Model" selection menu.
+* **Model Sync:** Upon startup, the GUI will automatically query your local Ollama library. Confirm that your desired models (e.g., GPT-OSS) appear in the "Primary Model" selection menu.
 
 2. **Select and Ingest Documents**
 * **File Selection:** Click the **"Browse"** button. You can select a single `.docx` file or hold `Ctrl` to select multiple files for batch processing.
@@ -308,7 +308,7 @@ To ensure a successful translation and document reconstruction, follow these ope
 
 3. **Configure Linguistic and Model Parameters**
 * **Language Selection:** Set your **Source** and **Target** languages using the dropdown menus. It is critical to select specific regional variants (e.g., Portuguese-PT vs. Portuguese-BR) to ensure the LLM adopts the correct technical terminology.
-* **Model Assignment:** Choose your **Primary Model** (e.g., `translategemma:27b` for high-fidelity technical work).
+* **Model Assignment:** Choose your **Primary Model** (e.g., `GPT-OSS` for high-fidelity technical work).
 * **Expert Consultant (Optional):** If the document is highly specialized, enable the **Consultant Mode** and select a domain-specific model (e.g., Structural Llama) to perform an accuracy audit on the primary output.
 
 4. **Execute the Translation Process**
